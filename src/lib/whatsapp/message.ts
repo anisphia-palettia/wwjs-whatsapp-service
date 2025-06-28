@@ -5,11 +5,12 @@ import type {
     WhatsappMessageTextInput,
     WhatsAppMessageWithImageInput
 } from "@/schema/whatsapp-message-schema.ts";
-import {saveMedia} from "@/utils/save-media.ts";
+import {saveMedia, saveMessageMedia} from "@/utils/save-media.ts";
 import {MessageMedia} from "whatsapp-web.js";
 import {WhatsappChats} from "@/lib/whatsapp/chat.ts";
 import type {IMessage} from "@/types/whatsapp.ts";
 import {mapMessageToIMessage} from "@/utils/map-message-to-imessage.ts";
+import fs from "fs";
 
 export function WhatsappMessage(clientId: string, isGroup: boolean = false) {
     const client = WhatsappClient(clientId).getOrThrow()
@@ -47,6 +48,11 @@ export function WhatsappMessage(clientId: string, isGroup: boolean = false) {
         },
         async messageByChatId(chatId: string): Promise<IMessage[]> {
             const chat = await whatsappChat.chatById(chatId)
+            await chat.fetchMessages({limit: 200}).then((messages) => (messages.map(async (message) => {
+                if (message.hasMedia) {
+                    await saveMessageMedia(message, clientId, chatId)
+                }
+            })))
             return await chat.fetchMessages({limit: 200}).then((messages) => (messages.map(message => mapMessageToIMessage(message))))
         }
     }
