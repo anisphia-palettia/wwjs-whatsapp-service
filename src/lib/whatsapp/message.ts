@@ -1,15 +1,19 @@
 import {WhatsappClient} from "@/lib/whatsapp/client.ts";
 import type {
-    WhatsAppMessageBroadcastWithImageInput,
     WhatsAppMessageBroadcastInput,
+    WhatsAppMessageBroadcastWithImageInput,
     WhatsappMessageTextInput,
     WhatsAppMessageWithImageInput
 } from "@/schema/whatsapp-message-schema.ts";
 import {saveMedia} from "@/utils/save-media.ts";
 import {MessageMedia} from "whatsapp-web.js";
+import {WhatsappChats} from "@/lib/whatsapp/chat.ts";
+import type {IMessage} from "@/types/whatsapp.ts";
+import {mapMessageToIMessage} from "@/utils/map-message-to-imessage.ts";
 
 export function WhatsappMessage(clientId: string, isGroup: boolean = false) {
     const client = WhatsappClient(clientId).getOrThrow()
+    const whatsappChat = WhatsappChats(clientId)
 
     function buildChatId(phoneNumber: string): string {
         if (phoneNumber.includes("@")) return phoneNumber;
@@ -41,5 +45,9 @@ export function WhatsappMessage(clientId: string, isGroup: boolean = false) {
                 await client.sendMessage(targetId, imageMessage, caption ? {caption} : {})
             }
         },
+        async messageByChatId(chatId: string): Promise<IMessage[]> {
+            const chat = await whatsappChat.chatById(chatId)
+            return await chat.fetchMessages({limit: 200}).then((messages) => (messages.map(message => mapMessageToIMessage(message))))
+        }
     }
 }

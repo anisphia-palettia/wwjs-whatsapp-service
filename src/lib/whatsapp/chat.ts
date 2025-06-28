@@ -1,14 +1,16 @@
 import {WhatsappClient} from "./client";
 import {HTTPException} from "hono/http-exception";
+import type {IChat} from "@/types/whatsapp.ts";
+import {mapChatToIChat} from "@/utils/map-chat-to-ichat.ts";
 
 export function WhatsappChats(clientId: string) {
     const client = WhatsappClient(clientId).getOrThrow()
 
     return {
         async getOrThrowChatByChatId(chatId: string) {
-            const chats = await this.allChats();
+            const chats = await this.all();
 
-            const chat = chats.find((chat) => chat.chatId === chatId); // pastikan kamu pakai "id" atau "chatId"
+            const chat = chats.find((chat) => chat.chatId === chatId);
 
             if (!chat) {
                 throw new HTTPException(404, {message: "Chat not found"});
@@ -16,31 +18,27 @@ export function WhatsappChats(clientId: string) {
 
             return chat;
         },
-        async allChats() {
+        async all(): Promise<IChat[]> {
             const chats = await client.getChats()
 
             const filteredChat = chats
-                .map((chat) => ({
-                    name: chat.name,
-                    chatId: chat.id._serialized,
-                    timestamp: chat.timestamp,
-                }));
+                .map((chat) => {
+                    return mapChatToIChat(chat);
+                });
 
             return filteredChat.length > 0 ? filteredChat : [];
         },
-        async allGroupChats() {
+        async allGroup(): Promise<IChat[]> {
             const chats = await client.getChats()
             const filteredGroupChat = chats.filter((chat) => chat.isGroup)
-                .map((chat) => ({
-                    name: chat.name,
-                    chatId: chat.id._serialized,
-                    timestamp: chat.timestamp,
-                }))
+                .map((chat) => {
+                    return mapChatToIChat(chat);
+                })
             return filteredGroupChat.length > 0 ? filteredGroupChat : [];
         },
-        async allMessageByChatId(chatId: string) {
+        async chatById(chatId: string) {
             const chat = await this.getOrThrowChatByChatId(chatId)
-            return await client.getMessageById(chat.chatId);
+            return await client.getChatById(chat.chatId)
         }
     }
 }

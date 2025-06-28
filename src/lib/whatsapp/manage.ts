@@ -2,6 +2,7 @@ import {Client, LocalAuth} from "whatsapp-web.js";
 import {logger} from "../logger";
 import {WhatsappClient} from "./client";
 import {WhatsappQr} from "@/lib/whatsapp/qr.ts";
+import {HTTPException} from "hono/http-exception";
 
 export function WhatsappManage(clientId: string) {
     const qrStore = WhatsappQr(clientId);
@@ -18,9 +19,16 @@ export function WhatsappManage(clientId: string) {
                     }
                 });
 
+                if (clientStore.has()) {
+                    throw new HTTPException(409, {
+                        message: `Client with id ${clientId} is already running.`,
+                    });
+                }
+
                 if (qrStore.has()) {
-                    reject(new Error(`Client already started for clientId "${clientId}, please scan the QR code"`));
-                    return;
+                    throw new HTTPException(400, {
+                        message: `QR code already generated for client ${clientId}. Please scan it to continue.`,
+                    });
                 }
 
                 const stop = setTimeout(async () => {
@@ -39,6 +47,7 @@ export function WhatsappManage(clientId: string) {
                 client.on("ready", () => {
                     logger.info(`✅ Client ready for clientId ${clientId}`);
                     clientStore.set(client);
+                    qrStore.delete();
                     clearTimeout(stop);
                     resolve("ready");
                 });
